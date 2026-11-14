@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self';">
+  <meta name="theme-color" content="#2b7a78">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>心配事日記 - Worry Diary</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/svg+xml" href="./icon.svg">
+  <link rel="apple-touch-icon" href="./icon.svg">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-title-group">
+        <img src="./icon.svg" alt="アイコン" class="header-logo" width="32" height="32">
+        <div>
+          <h1 class="app-title">心配事日記</h1>
+          <p class="app-subtitle">心配事のほとんどは起こらないから大丈夫だよ</p>
+        </div>
+      </div>
+      <button type="button" id="btn-open-backup" class="icon-btn" aria-label="データ管理・バックアップ">
+        ⚙️
+      </button>
+    </header>
+
+    <!-- Quick Summary Banner -->
+    <section class="peace-banner" id="peace-banner" aria-live="polite">
+      <div class="peace-banner-split">
+        <div class="peace-banner-col">
+          <span class="peace-banner-label">🌿 起こらなかった</span>
+          <strong class="peace-banner-rate" id="banner-not-happened-rate">--%</strong>
+        </div>
+        <div class="peace-banner-divider"></div>
+        <div class="peace-banner-col">
+          <span class="peace-banner-label">🌤️ 起こったけど大したことない／うまく対応できた</span>
+          <strong class="peace-banner-rate" id="banner-coped-rate">--%</strong>
+        </div>
+      </div>
+      <p class="peace-banner-caption" id="banner-peace-caption">
+        心配事を書き出して、あとで結果を選びましょう
+      </p>
+    </section>
+
+    <!-- Main Content Views -->
+    <main class="main-content">
+      <!-- View 1: List View -->
+      <section id="view-list" class="tab-view active" aria-labelledby="nav-list">
+        <!-- New Worry Form -->
+        <form id="form-add-worry" class="add-card" autocomplete="off">
+          <div class="form-header">
+            <label for="input-worry-title" class="form-title">💭 今気になっている心配事を書き出してみよう</label>
+          </div>
+          <textarea
+            id="input-worry-title"
+            class="worry-input"
+            rows="2"
+            maxlength="300"
+            placeholder="例：明日の打ち合わせでうまく話せないかもしれない…"
+            required
+          ></textarea>
+          <div class="form-row">
+            <div class="date-input-group">
+              <label for="input-worry-date" class="small-label">登録日:</label>
+              <input type="date" id="input-worry-date" class="date-input" required>
+            </div>
+            <button type="submit" class="btn-primary">リストに預ける</button>
+          </div>
+        </form>
+
+        <!-- Filter Pills -->
+        <div class="filter-bar" role="tablist" aria-label="リスト表示切り替え">
+          <button type="button" class="filter-pill active" data-filter="active" id="filter-active">
+            心配中 <span class="badge" id="count-active">0</span>
+          </button>
+          <button type="button" class="filter-pill" data-filter="resolved" id="filter-resolved">
+            終了済み <span class="badge" id="count-resolved">0</span>
+          </button>
+          <button type="button" class="filter-pill" data-filter="all" id="filter-all">
+            すべて <span class="badge" id="count-all">0</span>
+          </button>
+        </div>
+
+        <!-- Year / Month Filter Bar -->
+        <div id="period-filter-bar" class="period-filter-bar">
+          <span class="period-filter-label">📅 期間絞り込み:</span>
+          <div class="period-selects">
+            <select id="filter-year" class="period-select" aria-label="年で絞り込み">
+              <option value="all">すべての年</option>
+            </select>
+            <select id="filter-month" class="period-select" aria-label="月で絞り込み">
+              <option value="all">すべての月</option>
+              <option value="01">1月</option>
+              <option value="02">2月</option>
+              <option value="03">3月</option>
+              <option value="04">4月</option>
+              <option value="05">5月</option>
+              <option value="06">6月</option>
+              <option value="07">7月</option>
+              <option value="08">8月</option>
+              <option value="09">9月</option>
+              <option value="10">10月</option>
+              <option value="11">11月</option>
+              <option value="12">12月</option>
+            </select>
+            <button type="button" id="btn-reset-period" class="btn-period-reset" hidden>クリア</button>
+          </div>
+        </div>
+
+        <!-- Worry Items Container -->
+        <div id="worry-list-container" class="worry-list" aria-live="polite"></div>
+      </section>
+
+      <!-- View 2: Calendar View (Registered Date Based) -->
+      <section id="view-calendar" class="tab-view" aria-labelledby="nav-calendar" hidden>
+        <div class="calendar-card">
+          <div class="calendar-header">
+            <button type="button" id="cal-prev-month" class="cal-nav-btn" aria-label="前の月">◀</button>
+            <h2 id="cal-month-title" class="cal-month-title">2026年 11月</h2>
+            <button type="button" id="cal-next-month" class="cal-nav-btn" aria-label="次の月">▶</button>
+          </div>
+          <div class="calendar-legend">
+            <span class="legend-item"><span class="dot dot-active"></span>心配中</span>
+            <span class="legend-item"><span class="dot dot-resolved"></span>終了済み</span>
+          </div>
+          <div class="calendar-weekdays">
+            <span class="sun">日</span>
+            <span>月</span>
+            <span>火</span>
+            <span>水</span>
+            <span>木</span>
+            <span>金</span>
+            <span class="sat">土</span>
+          </div>
+          <div id="calendar-grid" class="calendar-grid"></div>
+        </div>
+
+        <div class="selected-date-section">
+          <div class="selected-date-header">
+            <h3 id="selected-date-title" class="selected-date-title">選択した日の心配事</h3>
+            <button type="button" id="btn-add-on-selected-date" class="btn-outline-sm">＋ この日で追加</button>
+          </div>
+          <div id="calendar-day-list" class="worry-list"></div>
+        </div>
+      </section>
+
+      <!-- View 3: Statistics View -->
+      <section id="view-stats" class="tab-view" aria-labelledby="nav-stats" hidden>
+        <div class="stats-hero-card">
+          <p class="stats-hero-label">結末がわかった心配事のまとめ</p>
+          <div class="stats-two-pillars">
+            <div class="pillar-card pillar-none">
+              <span class="pillar-badge">🌿 起こらなかった</span>
+              <div class="pillar-rate" id="stats-not-happened-rate">--%</div>
+              <span class="pillar-count" id="stats-not-happened-count">0件</span>
+              <p class="pillar-sub">実際には起こらず取り越し苦労だった</p>
+            </div>
+            <div class="pillar-card pillar-coped">
+              <span class="pillar-badge">🌤️ 起こったけど大丈夫</span>
+              <div class="pillar-rate" id="stats-coped-rate">--%</div>
+              <span class="pillar-count" id="stats-coped-count">0件</span>
+              <p class="pillar-sub">起こったけど大したことない／うまく対応できた</p>
+            </div>
+          </div>
+          <p class="stats-hero-desc" id="stats-total-peace-desc">
+            終了した心配事の <strong>--%</strong> は「起こらなかった」か「起こっても大丈夫だった」ことでした。
+          </p>
+          <div class="stats-counts-grid">
+            <div class="stat-mini-box">
+              <span class="stat-mini-num" id="stats-total-count">0</span>
+              <span class="stat-mini-label">記録した総数</span>
+            </div>
+            <div class="stat-mini-box">
+              <span class="stat-mini-num" id="stats-active-count">0</span>
+              <span class="stat-mini-label">現在心配中</span>
+            </div>
+            <div class="stat-mini-box">
+              <span class="stat-mini-num" id="stats-resolved-count">0</span>
+              <span class="stat-mini-label">終了済み</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="stats-breakdown-card">
+          <h3 class="card-section-title">結末の内訳（終了済み）</h3>
+          <div id="stats-bars-container" class="stats-bars"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Bottom Tab Navigation -->
+    <nav class="bottom-nav" aria-label="メインナビゲーション">
+      <button type="button" id="nav-list" class="nav-item active" data-target="view-list">
+        <span class="nav-icon">📋</span>
+        <span class="nav-label">リスト</span>
+      </button>
+      <button type="button" id="nav-calendar" class="nav-item" data-target="view-calendar">
+        <span class="nav-icon">📅</span>
+        <span class="nav-label">カレンダー</span>
+      </button>
+      <button type="button" id="nav-stats" class="nav-item" data-target="view-stats">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">安心統計</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Modal: Resolve / Edit Outcome -->
+  <div id="modal-resolve" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-resolve-title" hidden>
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h2 id="modal-resolve-title" class="modal-title">心配事の結末を記録して終了</h2>
+        <button type="button" id="btn-close-resolve" class="modal-close-btn" aria-label="閉じる">✕</button>
+      </div>
+      <form id="form-resolve-worry">
+        <input type="hidden" id="resolve-worry-id">
+        <div class="modal-worry-preview" id="resolve-worry-preview"></div>
+
+        <div class="form-group">
+          <label for="select-outcome" class="form-label">その後、実際はどうなりましたか？（プルダウン選択）</label>
+          <select id="select-outcome" class="outcome-select" required>
+            <option value="did_not_happen">🌿 実際に起こらなかった（取り越し苦労だった）</option>
+            <option value="not_bad">🌤️ 起こったが、大したことはなかった</option>
+            <option value="handled_well">✨ 起こったが、うまく対応できた</option>
+            <option value="actually_hard">🌧️ 予想通り大変だった（対応に苦労した）</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="input-reflection-note" class="form-label">ひとこと振り返りメモ（任意）</label>
+          <textarea
+            id="input-reflection-note"
+            class="worry-input"
+            rows="3"
+            maxlength="500"
+            placeholder="例：あんなに悩んでいたけれど、当日は5分であっさり終わった。"
+          ></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="btn-cancel-resolve" class="btn-secondary">キャンセル</button>
+          <button type="submit" class="btn-primary">結末を記録して終了</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Delete Confirmation -->
+  <div id="modal-delete" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-delete-title" hidden>
+    <div class="modal-sheet modal-sm">
+      <div class="modal-header">
+        <h2 id="modal-delete-title" class="modal-title">記録の削除</h2>
+      </div>
+      <p class="modal-body-text" id="delete-target-preview">この心配事の記録を削除してもよろしいですか？</p>
+      <div class="modal-actions">
+        <button type="button" id="btn-cancel-delete" class="btn-secondary">キャンセル</button>
+        <button type="button" id="btn-confirm-delete" class="btn-danger">削除する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Backup & Settings -->
+  <div id="modal-backup" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-backup-title" hidden>
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h2 id="modal-backup-title" class="modal-title">データ管理・使い方</h2>
+        <button type="button" id="btn-close-backup" class="modal-close-btn" aria-label="閉じる">✕</button>
+      </div>
+      <div class="backup-section">
+        <h3 class="backup-subtitle">📱 Androidホーム画面への追加方法</h3>
+        <p class="backup-help">
+          Chrome右上のメニュー「⋮」から「<strong>ホーム画面に追加</strong>」（または「アプリをインストール」）を選ぶと、通常のアプリのようにアイコンから全画面で起動できます。
+        </p>
+      </div>
+      <div class="backup-section">
+        <h3 class="backup-subtitle">💾 データのバックアップ（JSON保存・復元）</h3>
+        <p class="backup-help">
+          記録はこの端末内にのみ保存されています。機種変更時などのためにファイルとして書き出し・読み込みができます。
+        </p>
+        <div class="backup-btn-row">
+          <button type="button" id="btn-export-json" class="btn-secondary">📤 書き出し（保存）</button>
+          <label for="input-import-json" class="btn-secondary file-label-btn">📥 読み込み（復元）</label>
+          <input type="file" id="input-import-json" accept="application/json,.json" hidden>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

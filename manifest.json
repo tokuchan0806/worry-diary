@@ -1,0 +1,18 @@
+{
+  "name": "心配事日記 - Worry Diary",
+  "short_name": "心配事日記",
+  "description": "心配事を記録して「ほとんどは起こらない・大丈夫だった」を実感する日記＆カレンダーアプリ",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f9f8",
+  "theme_color": "#2b7a78",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

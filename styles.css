@@ -1037,3 +1037,351 @@ body {
   font-weight: 600;
   box-shadow: var(--shadow-md);
 }
+
+/* Header Actions */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Mode Selector Menu (Worry vs Gratitude) */
+.mode-menu {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+  background: var(--bg-subtle);
+  padding: 5px;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+}
+
+.mode-btn {
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  padding: 10px 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.mode-btn.active[data-mode="worry"] {
+  background: var(--bg-surface);
+  color: var(--primary-dark);
+  box-shadow: var(--shadow-sm);
+}
+
+.mode-btn.active[data-mode="gratitude"] {
+  background: var(--bg-surface);
+  color: #b0466b;
+  box-shadow: var(--shadow-sm);
+}
+
+.mode-badge {
+  background: rgba(176, 70, 107, 0.12);
+  color: #b0466b;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+}
+
+/* Gratitude Theme Accents */
+.gratitude-add-card {
+  border-color: #f0d0dc;
+  background: #fffafc;
+}
+
+.gratitude-form-title {
+  color: #a63d63;
+}
+
+.btn-gratitude {
+  background: #c9567f;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-gratitude:hover,
+.btn-gratitude:active {
+  background: #a63d63;
+}
+
+.btn-outline-gratitude-sm {
+  background: var(--bg-surface);
+  color: #b0466b;
+  border: 1px solid #d97899;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.selected-date-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.worry-card.gratitude {
+  border-left-color: #d97899;
+  background: #fffbfd;
+}
+
+.status-chip.gratitude {
+  background: #fcebf1;
+  color: #a63d63;
+}
+
+.dot-gratitude {
+  background: #d97899;
+}
+
+.cal-count-pill.has-gratitude {
+  background: #fcebf1;
+  color: #a63d63;
+}
+
+/* Startup Priming Word Modal */
+.modal-center {
+  align-items: center;
+}
+
+.priming-sheet {
+  text-align: center;
+  padding: 24px 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #f5fbfa 100%);
+}
+
+.priming-header-badge {
+  display: inline-block;
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+  margin-bottom: 8px;
+}
+
+.priming-date-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.priming-word-box {
+  background: #ffffff;
+  border: 1.5px solid var(--border-color);
+  border-radius: 14px;
+  padding: 20px 16px;
+  font-size: 1.12rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.6;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.priming-sub-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.btn-text-sm {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.priming-start-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 0.96rem;
+}
+
+/* Manage Priming Words Modal */
+.modal-scrollable {
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.priming-add-form {
+  margin-bottom: 14px;
+}
+
+.priming-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.priming-text-input {
+  flex: 1;
+  border: 1.5px solid var(--border-color);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.priming-text-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.priming-list-section {
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 2px;
+}
+
+.priming-words-list {
+  list-style: none;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.priming-word-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 0.85rem;
+}
+
+.priming-word-text {
+  flex: 1;
+  word-break: break-word;
+}
+
+.priming-word-tag {
+  font-size: 0.68rem;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.gratitude-hint {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.app-subtitle-gratitude {
+  font-size: 0.74rem;
+  color: #b0466b;
+  font-weight: 600;
+}
+
+.header-priming-bar {
+  margin: 10px 16px 0;
+  padding: 9px 12px;
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--primary);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.header-priming-content {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-like-priming {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 1rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.btn-like-priming:active {
+  transform: scale(0.94);
+}
+
+.btn-like-priming.liked {
+  background: #fcebf1;
+  border-color: #e495b1;
+  color: #b0466b;
+}
+
+.header-priming-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.header-priming-text {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.4;
+}
+
+.app-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-version-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  padding: 1px 6px;
+  border-radius: 999px;
+}

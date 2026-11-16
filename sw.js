@@ -1,4 +1,4 @@
-const CACHE_NAME = 'worry-diary-v4';
+const CACHE_NAME = 'worry-diary-v12';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

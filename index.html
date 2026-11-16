@@ -21,14 +21,31 @@
       <div class="header-title-group">
         <img src="./icon.svg" alt="アイコン" class="header-logo" width="32" height="32">
         <div>
-          <h1 class="app-title">心配事日記</h1>
+          <h1 class="app-title">心配事日記 <span id="app-version" class="app-version-badge">v1.2.0</span></h1>
           <p class="app-subtitle">心配事のほとんどは起こらないから大丈夫だよ</p>
+          <p class="app-subtitle-gratitude">感謝の気持ちも記録しよう</p>
         </div>
       </div>
-      <button type="button" id="btn-open-backup" class="icon-btn" aria-label="データ管理・バックアップ">
-        ⚙️
-      </button>
+      <div class="header-actions">
+        <button type="button" id="btn-open-priming" class="icon-btn" aria-label="今日のプライミングワード">
+          ✨
+        </button>
+        <button type="button" id="btn-open-backup" class="icon-btn" aria-label="データ管理・バックアップ">
+          ⚙️
+        </button>
+      </div>
     </header>
+
+    <!-- Daily Priming Word Banner (Always Visible Under Header) -->
+    <div id="header-priming-bar" class="header-priming-bar">
+      <button type="button" id="header-priming-open" class="header-priming-content" aria-label="今日のプライミングワードを開く">
+        <span class="header-priming-badge">✨ 今日のプライミングワード</span>
+        <span id="header-priming-text" class="header-priming-text"></span>
+      </button>
+      <button type="button" id="btn-like-priming" class="btn-like-priming" aria-label="今日のプライミングワードにいいねする" aria-pressed="false">
+        <span id="priming-like-icon" class="priming-like-icon">🤍</span>
+      </button>
+    </div>
 
     <!-- Quick Summary Banner -->
     <section class="peace-banner" id="peace-banner" aria-live="polite">
@@ -52,45 +69,91 @@
     <main class="main-content">
       <!-- View 1: List View -->
       <section id="view-list" class="tab-view active" aria-labelledby="nav-list">
-        <!-- New Worry Form -->
-        <form id="form-add-worry" class="add-card" autocomplete="off">
-          <div class="form-header">
-            <label for="input-worry-title" class="form-title">💭 今気になっている心配事を書き出してみよう</label>
-          </div>
-          <textarea
-            id="input-worry-title"
-            class="worry-input"
-            rows="2"
-            maxlength="300"
-            placeholder="例：明日の打ち合わせでうまく話せないかもしれない…"
-            required
-          ></textarea>
-          <div class="form-row">
-            <div class="date-input-group">
-              <label for="input-worry-date" class="small-label">登録日:</label>
-              <input type="date" id="input-worry-date" class="date-input" required>
-            </div>
-            <button type="submit" class="btn-primary">リストに預ける</button>
-          </div>
-        </form>
-
-        <!-- Filter Pills -->
-        <div class="filter-bar" role="tablist" aria-label="リスト表示切り替え">
-          <button type="button" class="filter-pill active" data-filter="active" id="filter-active">
-            心配中 <span class="badge" id="count-active">0</span>
+        <!-- Mode Selector Menu (Worry vs Gratitude) -->
+        <div class="mode-menu" role="tablist" aria-label="記録する内容を選択">
+          <button type="button" id="mode-btn-worry" class="mode-btn active" data-mode="worry" role="tab" aria-selected="true">
+            <span class="mode-btn-icon">💭</span>
+            <span class="mode-btn-text">心配事</span>
           </button>
-          <button type="button" class="filter-pill" data-filter="resolved" id="filter-resolved">
-            終了済み <span class="badge" id="count-resolved">0</span>
-          </button>
-          <button type="button" class="filter-pill" data-filter="all" id="filter-all">
-            すべて <span class="badge" id="count-all">0</span>
+          <button type="button" id="mode-btn-gratitude" class="mode-btn" data-mode="gratitude" role="tab" aria-selected="false">
+            <span class="mode-btn-icon">🌸</span>
+            <span class="mode-btn-text">感謝の言葉</span>
+            <span class="mode-badge" id="count-gratitude">0</span>
           </button>
         </div>
 
-        <!-- Year / Month Filter Bar -->
+        <!-- Panel: Worry Mode -->
+        <div id="panel-mode-worry">
+          <!-- New Worry Form -->
+          <form id="form-add-worry" class="add-card" autocomplete="off">
+            <div class="form-header">
+              <label for="input-worry-title" class="form-title">💭 今気になっている心配事を書き出してみよう</label>
+            </div>
+            <textarea
+              id="input-worry-title"
+              class="worry-input"
+              rows="2"
+              maxlength="300"
+              placeholder="例：明日の打ち合わせでうまく話せないかもしれない…"
+              required
+            ></textarea>
+            <div class="form-row">
+              <div class="date-input-group">
+                <label for="input-worry-date" class="small-label">登録日:</label>
+                <input type="date" id="input-worry-date" class="date-input" required>
+              </div>
+              <button type="submit" class="btn-primary">リストに預ける</button>
+            </div>
+          </form>
+
+          <!-- Filter Pills -->
+          <div class="filter-bar" role="tablist" aria-label="リスト表示切り替え">
+            <button type="button" class="filter-pill active" data-filter="active" id="filter-active">
+              心配中 <span class="badge" id="count-active">0</span>
+            </button>
+            <button type="button" class="filter-pill" data-filter="resolved" id="filter-resolved">
+              終了済み <span class="badge" id="count-resolved">0</span>
+            </button>
+            <button type="button" class="filter-pill" data-filter="all" id="filter-all">
+              すべて <span class="badge" id="count-all">0</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Panel: Gratitude Mode -->
+        <div id="panel-mode-gratitude" hidden>
+          <form id="form-add-gratitude" class="add-card gratitude-add-card" autocomplete="off">
+            <div class="form-header">
+              <label for="input-gratitude-title" class="form-title gratitude-form-title">🌸 今日感謝したいことを書き出してみよう</label>
+              <p class="gratitude-hint">（他人への感謝、自分の置かれた環境や健康への感謝、小さなできごとなど）</p>
+            </div>
+            <textarea
+              id="input-gratitude-title"
+              class="worry-input"
+              rows="2"
+              maxlength="300"
+              placeholder="例：同僚が困っているときに優しく声をかけてくれた"
+              required
+            ></textarea>
+            <div class="form-row">
+              <div class="date-input-group">
+                <label for="input-gratitude-date" class="small-label">登録日:</label>
+                <input type="date" id="input-gratitude-date" class="date-input" required>
+              </div>
+              <button type="submit" class="btn-gratitude">感謝を記録する</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Kind / Year / Month Filter Bar -->
         <div id="period-filter-bar" class="period-filter-bar">
-          <span class="period-filter-label">📅 期間絞り込み:</span>
+          <span class="period-filter-label">🔍 絞り込み:</span>
           <div class="period-selects">
+            <select id="filter-kind" class="period-select" aria-label="種類で絞り込み">
+              <option value="all">すべて</option>
+              <option value="worry">心配事</option>
+              <option value="gratitude">感謝</option>
+            </select>
             <select id="filter-year" class="period-select" aria-label="年で絞り込み">
               <option value="all">すべての年</option>
             </select>
@@ -113,7 +176,7 @@
           </div>
         </div>
 
-        <!-- Worry Items Container -->
+        <!-- Combined / Filtered Items Container -->
         <div id="worry-list-container" class="worry-list" aria-live="polite"></div>
       </section>
 
@@ -128,6 +191,7 @@
           <div class="calendar-legend">
             <span class="legend-item"><span class="dot dot-active"></span>心配中</span>
             <span class="legend-item"><span class="dot dot-resolved"></span>終了済み</span>
+            <span class="legend-item"><span class="dot dot-gratitude"></span>感謝</span>
           </div>
           <div class="calendar-weekdays">
             <span class="sun">日</span>
@@ -143,8 +207,11 @@
 
         <div class="selected-date-section">
           <div class="selected-date-header">
-            <h3 id="selected-date-title" class="selected-date-title">選択した日の心配事</h3>
-            <button type="button" id="btn-add-on-selected-date" class="btn-outline-sm">＋ この日で追加</button>
+            <h3 id="selected-date-title" class="selected-date-title">選択した日の記録</h3>
+            <div class="selected-date-btns">
+              <button type="button" id="btn-add-on-selected-date" class="btn-outline-sm">＋ 心配事</button>
+              <button type="button" id="btn-add-gratitude-on-selected-date" class="btn-outline-gratitude-sm">＋ 感謝</button>
+            </div>
           </div>
           <div id="calendar-day-list" class="worry-list"></div>
         </div>
@@ -288,6 +355,48 @@
           <label for="input-import-json" class="btn-secondary file-label-btn">📥 読み込み（復元）</label>
           <input type="file" id="input-import-json" accept="application/json,.json" hidden>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Daily Priming Word (Shown on Startup) -->
+  <div id="modal-priming" class="modal-backdrop modal-center" role="dialog" aria-modal="true" aria-labelledby="modal-priming-title" hidden>
+    <div class="modal-sheet priming-sheet">
+      <div class="priming-header-badge">✨ 今日のプライミングワード</div>
+      <h2 id="modal-priming-title" class="priming-date-label"></h2>
+      <blockquote id="priming-word-display" class="priming-word-box"></blockquote>
+      <div class="priming-sub-actions">
+        <button type="button" id="btn-shuffle-priming" class="btn-text-sm">🔄 別の言葉を見る</button>
+        <button type="button" id="btn-manage-priming" class="btn-text-sm">✏️ 追加・管理する</button>
+      </div>
+      <button type="button" id="btn-close-priming" class="btn-primary priming-start-btn">今日もはじめよう</button>
+    </div>
+  </div>
+
+  <!-- Modal: Manage Priming Words -->
+  <div id="modal-priming-manage" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-priming-manage-title" hidden>
+    <div class="modal-sheet modal-scrollable">
+      <div class="modal-header">
+        <h2 id="modal-priming-manage-title" class="modal-title">✨ プライミングワードの管理</h2>
+        <button type="button" id="btn-close-priming-manage" class="modal-close-btn" aria-label="閉じる">✕</button>
+      </div>
+      <form id="form-add-priming" class="priming-add-form" autocomplete="off">
+        <label for="input-priming-word" class="form-label">自分の言葉を新しく追加する</label>
+        <div class="priming-input-row">
+          <input
+            type="text"
+            id="input-priming-word"
+            class="priming-text-input"
+            maxlength="120"
+            placeholder="例：深呼吸すれば大丈夫、一歩ずついこう"
+            required
+          >
+          <button type="submit" class="btn-primary">追加</button>
+        </div>
+      </form>
+      <div class="priming-list-section">
+        <p class="small-label">登録されている言葉（日替わりで表示されます）</p>
+        <ul id="priming-words-list" class="priming-words-list"></ul>
       </div>
     </div>
   </div>

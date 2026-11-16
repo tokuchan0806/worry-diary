@@ -1,7 +1,44 @@
 'use strict';
 
 (function () {
+  const APP_VERSION = 'v1.2.0';
   const STORAGE_KEY = 'worry_diary_items_v1';
+  const GRATITUDE_STORAGE_KEY = 'worry_diary_gratitudes_v1';
+  const PRIMING_STORAGE_KEY = 'worry_diary_priming_v1';
+  const PRIMING_LIKES_STORAGE_KEY = 'worry_diary_priming_likes_v1';
+
+  const DEFAULT_PRIMING_WORDS = [
+    '心配事のほとんどは実際には起こらないから大丈夫だよ。',
+    'コントロールできることだけに力を注ごう。',
+    '小さな一歩で十分。完璧じゃなくていい。',
+    '今ここにある小さな感謝に目を向けてみよう。',
+    '今日もここまでよくやっている。自分をねぎらおう。',
+    '起きてもいない未来より、今の自分の心地よさを大切に。',
+    '深呼吸をひとつ。肩の力を抜いて始めよう。',
+    '過去の自分も、きっと今のあなたを応援している。',
+    '「なんとかなる」と思えた瞬間から、心は軽くなる。',
+    '今日は誰のどんな優しさに気づけるだろう。',
+    '不安は頭の中から紙に預けて、心を手ぶらにしよう。',
+    '今日という日は、新しい小さな発見に満ちている。',
+    'うまくいかない日があっても、あなたの価値は変わらない。',
+    '「今、この瞬間」だけに集中すれば、大抵のことは乗り越えられる。',
+    '比べなくていい。昨日の自分より少しだけ前へ。',
+    '迷ったら、心が少しでもほっとする方を選ぼう。',
+    'ありがたいことに気づくたび、心は少しずつ豊かになる。',
+    '起きたことは事実、それをどう受け止めるかは自分で選べる。',
+    '焦らなくて大丈夫。今のペースがあなたにとってちょうどいい。',
+    '苦手なことより、今日できた小さなことを数えてみよう。',
+    '誰かの笑顔や親切に、今日は心の中で「ありがとう」と言ってみよう。',
+    '休むことも、前に進むための大切な行動のひとつ。',
+    '心配は「備え」ができたら、もう手放していい。',
+    '自分の機嫌を少しだけ良くすることを、今日はひとつやってみよう。',
+    '言葉に出したり書き出したりするだけで、不安は半分くらい小さくなる。',
+    '今日出会う人にも、自分にも、少しだけ優しく接してみよう。',
+    '未来の自分なら、今の悩みも笑って振り返っているかもしれない。',
+    '当たり前のようにある日常の中にも、感謝できることはたくさんある。',
+    'できることからひとつずつ。全部いっぺんにやらなくていい。',
+    '今日もあなたのペースで、穏やかな一日を過ごせますように。'
+  ];
 
   const OUTCOMES = {
     did_not_happen: {
@@ -30,13 +67,19 @@
 
   // State
   let worries = [];
+  let gratitudes = [];
+  let customPrimingWords = [];
+  let primingLikes = {}; // { [word]: { count: number, lastLikedDate: string | null } }
+  let currentMode = 'worry'; // 'worry' | 'gratitude'
   let currentFilter = 'active';
+  let filterKind = 'all'; // 'all' | 'worry' | 'gratitude'
   let filterYear = 'all';
   let filterMonth = 'all';
   let calendarYear = new Date().getFullYear();
   let calendarMonth = new Date().getMonth(); // 0-indexed
   let selectedDateStr = getTodayDateStr();
-  let pendingDeleteId = null;
+  let pendingDeleteTarget = null; // { type: 'worry' | 'gratitude', id: string }
+  let currentPrimingIndex = 0;
 
   // Helpers
   function getTodayDateStr() {
@@ -135,6 +178,120 @@
     }
   }
 
+  function sanitizeGratitude(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const id = typeof raw.id === 'string' && raw.id.length <= 100 ? raw.id : generateId();
+    const title = typeof raw.title === 'string' ? raw.title.trim().slice(0, 300) : '';
+    if (!title) return null;
+    const registeredDate = isValidDateStr(raw.registeredDate)
+      ? raw.registeredDate
+      : getTodayDateStr();
+    const createdAt =
+      typeof raw.createdAt === 'number' && Number.isFinite(raw.createdAt)
+        ? raw.createdAt
+        : Date.now();
+    return { id, title, registeredDate, createdAt };
+  }
+
+  function loadGratitudes() {
+    try {
+      const rawJson = localStorage.getItem(GRATITUDE_STORAGE_KEY);
+      if (!rawJson) {
+        gratitudes = [];
+        return;
+      }
+      const parsed = JSON.parse(rawJson);
+      if (!Array.isArray(parsed)) {
+        gratitudes = [];
+        return;
+      }
+      gratitudes = parsed.map(sanitizeGratitude).filter(Boolean);
+    } catch (_err) {
+      gratitudes = [];
+    }
+  }
+
+  function saveGratitudes() {
+    try {
+      localStorage.setItem(GRATITUDE_STORAGE_KEY, JSON.stringify(gratitudes));
+    } catch (_err) {
+      showToast('保存容量の上限に達している可能性があります');
+    }
+  }
+
+  function loadCustomPrimingWords() {
+    try {
+      const rawJson = localStorage.getItem(PRIMING_STORAGE_KEY);
+      if (!rawJson) {
+        customPrimingWords = [];
+        return;
+      }
+      const parsed = JSON.parse(rawJson);
+      if (!Array.isArray(parsed)) {
+        customPrimingWords = [];
+        return;
+      }
+      customPrimingWords = parsed
+        .filter((s) => typeof s === 'string')
+        .map((s) => s.trim().slice(0, 120))
+        .filter(Boolean);
+    } catch (_err) {
+      customPrimingWords = [];
+    }
+  }
+
+  function saveCustomPrimingWords() {
+    try {
+      localStorage.setItem(PRIMING_STORAGE_KEY, JSON.stringify(customPrimingWords));
+    } catch (_err) {
+      showToast('保存容量の上限に達している可能性があります');
+    }
+  }
+
+  function getAllPrimingWords() {
+    return DEFAULT_PRIMING_WORDS.concat(customPrimingWords);
+  }
+
+  function loadPrimingLikes() {
+    try {
+      const rawJson = localStorage.getItem(PRIMING_LIKES_STORAGE_KEY);
+      if (!rawJson) {
+        primingLikes = {};
+        return;
+      }
+      const parsed = JSON.parse(rawJson);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        primingLikes = {};
+        return;
+      }
+      const clean = {};
+      Object.keys(parsed).forEach((key) => {
+        const entry = parsed[key];
+        if (entry && typeof entry === 'object') {
+          const count =
+            typeof entry.count === 'number' && Number.isFinite(entry.count) && entry.count >= 0
+              ? Math.floor(entry.count)
+              : 0;
+          const lastLikedDate = isValidDateStr(entry.lastLikedDate)
+            ? entry.lastLikedDate
+            : null;
+          clean[key] = { count, lastLikedDate };
+        }
+      });
+      primingLikes = clean;
+    } catch (_err) {
+      primingLikes = {};
+    }
+  }
+
+  function savePrimingLikes() {
+    try {
+      localStorage.setItem(PRIMING_LIKES_STORAGE_KEY, JSON.stringify(primingLikes));
+    } catch (_err) {
+      // ignore storage errors
+    }
+  }
+
   function showToast(message) {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -228,7 +385,46 @@
     deleteBtn.className = 'btn-icon-delete';
     deleteBtn.setAttribute('aria-label', '削除');
     deleteBtn.textContent = '🗑️';
-    deleteBtn.addEventListener('click', () => openDeleteModal(item.id));
+    deleteBtn.addEventListener('click', () => openDeleteModal(item.id, 'worry'));
+    actionsRow.appendChild(deleteBtn);
+
+    card.appendChild(actionsRow);
+    return card;
+  }
+
+  function createGratitudeCardElement(item) {
+    const card = document.createElement('article');
+    card.className = 'worry-card gratitude';
+
+    const topRow = document.createElement('div');
+    topRow.className = 'worry-card-top';
+
+    const dateBadge = document.createElement('span');
+    dateBadge.className = 'worry-date-badge';
+    dateBadge.textContent = `🌸 登録日: ${formatDisplayDate(item.registeredDate)}`;
+
+    const statusChip = document.createElement('span');
+    statusChip.className = 'status-chip gratitude';
+    statusChip.textContent = '感謝の言葉';
+
+    topRow.appendChild(dateBadge);
+    topRow.appendChild(statusChip);
+    card.appendChild(topRow);
+
+    const titleEl = document.createElement('p');
+    titleEl.className = 'worry-title-text';
+    titleEl.textContent = item.title;
+    card.appendChild(titleEl);
+
+    const actionsRow = document.createElement('div');
+    actionsRow.className = 'worry-card-actions';
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'btn-icon-delete';
+    deleteBtn.setAttribute('aria-label', '削除');
+    deleteBtn.textContent = '🗑️';
+    deleteBtn.addEventListener('click', () => openDeleteModal(item.id, 'gratitude'));
     actionsRow.appendChild(deleteBtn);
 
     card.appendChild(actionsRow);
@@ -286,9 +482,11 @@
     const countActiveEl = document.getElementById('count-active');
     const countResolvedEl = document.getElementById('count-resolved');
     const countAllEl = document.getElementById('count-all');
+    const countGratitudeEl = document.getElementById('count-gratitude');
     if (countActiveEl) countActiveEl.textContent = String(activeCount);
     if (countResolvedEl) countResolvedEl.textContent = String(resolvedCount);
     if (countAllEl) countAllEl.textContent = String(totalCount);
+    if (countGratitudeEl) countGratitudeEl.textContent = String(gratitudes.length);
 
     // Stats View - Two Pillars
     const statsNotHappenedRate = document.getElementById('stats-not-happened-rate');
@@ -366,6 +564,11 @@
         yearsSet.add(w.registeredDate.slice(0, 4));
       }
     });
+    gratitudes.forEach((g) => {
+      if (isValidDateStr(g.registeredDate)) {
+        yearsSet.add(g.registeredDate.slice(0, 4));
+      }
+    });
 
     const sortedYears = Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
 
@@ -389,7 +592,8 @@
 
     const resetBtn = document.getElementById('btn-reset-period');
     if (resetBtn) {
-      resetBtn.hidden = filterYear === 'all' && filterMonth === 'all';
+      resetBtn.hidden =
+        filterKind === 'all' && filterYear === 'all' && filterMonth === 'all';
     }
   }
 
@@ -400,31 +604,55 @@
     if (!container) return;
     container.replaceChildren();
 
-    const filtered = worries
-      .filter((item) => {
-        if (currentFilter === 'active' && item.status !== 'active') return false;
-        if (currentFilter === 'resolved' && item.status !== 'resolved') return false;
+    const kindSelect = document.getElementById('filter-kind');
+    if (kindSelect && kindSelect.value !== filterKind) {
+      kindSelect.value = filterKind;
+    }
+
+    const combined = [];
+
+    if (filterKind === 'all' || filterKind === 'worry') {
+      worries.forEach((item) => {
+        if (currentFilter === 'active' && item.status !== 'active') return;
+        if (currentFilter === 'resolved' && item.status !== 'resolved') return;
 
         if (isValidDateStr(item.registeredDate)) {
           const [itemYear, itemMonth] = item.registeredDate.split('-');
-          if (filterYear !== 'all' && itemYear !== filterYear) return false;
-          if (filterMonth !== 'all' && itemMonth !== filterMonth) return false;
+          if (filterYear !== 'all' && itemYear !== filterYear) return;
+          if (filterMonth !== 'all' && itemMonth !== filterMonth) return;
         }
-        return true;
-      })
-      .sort((a, b) => {
-        if (a.registeredDate !== b.registeredDate) {
-          return b.registeredDate.localeCompare(a.registeredDate);
-        }
-        return b.createdAt - a.createdAt;
+        combined.push({ type: 'worry', item });
       });
+    }
 
-    if (filtered.length === 0) {
+    if (filterKind === 'all' || filterKind === 'gratitude') {
+      gratitudes.forEach((item) => {
+        if (isValidDateStr(item.registeredDate)) {
+          const [itemYear, itemMonth] = item.registeredDate.split('-');
+          if (filterYear !== 'all' && itemYear !== filterYear) return;
+          if (filterMonth !== 'all' && itemMonth !== filterMonth) return;
+        }
+        combined.push({ type: 'gratitude', item });
+      });
+    }
+
+    combined.sort((a, b) => {
+      if (a.item.registeredDate !== b.item.registeredDate) {
+        return b.item.registeredDate.localeCompare(a.item.registeredDate);
+      }
+      return b.item.createdAt - a.item.createdAt;
+    });
+
+    if (combined.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'empty-state';
       const isPeriodFiltered = filterYear !== 'all' || filterMonth !== 'all';
       if (isPeriodFiltered) {
         empty.textContent = '指定した年・月に該当する記録はありません。';
+      } else if (filterKind === 'gratitude') {
+        empty.textContent = 'まだ感謝の言葉がありません。小さな「ありがとう」を書き出してみましょう🌸';
+      } else if (filterKind === 'all') {
+        empty.textContent = '該当する記録はまだありません。';
       } else if (currentFilter === 'active') {
         empty.textContent = '現在抱えている心配事はありません。気になったらいつでも書き出して頭を休めましょう🌿';
       } else if (currentFilter === 'resolved') {
@@ -436,8 +664,12 @@
       return;
     }
 
-    filtered.forEach((item) => {
-      container.appendChild(createWorryCardElement(item));
+    combined.forEach((entry) => {
+      if (entry.type === 'gratitude') {
+        container.appendChild(createGratitudeCardElement(entry.item));
+      } else {
+        container.appendChild(createWorryCardElement(entry.item));
+      }
     });
   }
 
@@ -455,12 +687,17 @@
     const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
     const todayStr = getTodayDateStr();
 
-    // Group worries by registeredDate
+    // Group worries and gratitudes by registeredDate
     const byDate = new Map();
     worries.forEach((w) => {
-      const list = byDate.get(w.registeredDate) || [];
-      list.push(w);
-      byDate.set(w.registeredDate, list);
+      const entry = byDate.get(w.registeredDate) || { worries: [], gratitudes: [] };
+      entry.worries.push(w);
+      byDate.set(w.registeredDate, entry);
+    });
+    gratitudes.forEach((g) => {
+      const entry = byDate.get(g.registeredDate) || { worries: [], gratitudes: [] };
+      entry.gratitudes.push(g);
+      byDate.set(g.registeredDate, entry);
     });
 
     // Leading empty cells
@@ -487,24 +724,35 @@
       numSpan.textContent = String(day);
       cell.appendChild(numSpan);
 
-      const dayItems = byDate.get(dateStr) || [];
-      if (dayItems.length > 0) {
+      const dayEntry = byDate.get(dateStr) || { worries: [], gratitudes: [] };
+      const totalDayCount = dayEntry.worries.length + dayEntry.gratitudes.length;
+      if (totalDayCount > 0) {
         const dotsWrap = document.createElement('div');
         dotsWrap.className = 'cal-dots';
 
-        const maxDots = Math.min(dayItems.length, 4);
+        const dotClasses = [];
+        dayEntry.worries.forEach((w) => {
+          dotClasses.push(w.status === 'resolved' ? 'dot-resolved' : 'dot-active');
+        });
+        dayEntry.gratitudes.forEach(() => {
+          dotClasses.push('dot-gratitude');
+        });
+
+        const maxDots = Math.min(dotClasses.length, 4);
         for (let idx = 0; idx < maxDots; idx++) {
           const dot = document.createElement('span');
-          dot.className =
-            'dot ' + (dayItems[idx].status === 'resolved' ? 'dot-resolved' : 'dot-active');
+          dot.className = 'dot ' + dotClasses[idx];
           dotsWrap.appendChild(dot);
         }
         cell.appendChild(dotsWrap);
 
         const pill = document.createElement('span');
-        const hasActive = dayItems.some((item) => item.status === 'active');
-        pill.className = 'cal-count-pill ' + (hasActive ? 'has-active' : 'all-resolved');
-        pill.textContent = `${dayItems.length}件`;
+        const hasActive = dayEntry.worries.some((item) => item.status === 'active');
+        const hasOnlyGratitude = dayEntry.worries.length === 0 && dayEntry.gratitudes.length > 0;
+        pill.className =
+          'cal-count-pill ' +
+          (hasActive ? 'has-active' : hasOnlyGratitude ? 'has-gratitude' : 'all-resolved');
+        pill.textContent = `${totalDayCount}件`;
         cell.appendChild(pill);
       }
 
@@ -519,33 +767,109 @@
     // Render list for selectedDateStr
     const selectedTitle = document.getElementById('selected-date-title');
     if (selectedTitle) {
-      selectedTitle.textContent = `📅 ${formatDisplayDate(selectedDateStr)} に登録した心配事`;
+      selectedTitle.textContent = `📅 ${formatDisplayDate(selectedDateStr)} の記録`;
     }
 
     const dayListContainer = document.getElementById('calendar-day-list');
     if (dayListContainer) {
       dayListContainer.replaceChildren();
-      const itemsOnDay = (byDate.get(selectedDateStr) || []).sort(
-        (a, b) => b.createdAt - a.createdAt
-      );
+      const dayEntry = byDate.get(selectedDateStr) || { worries: [], gratitudes: [] };
+      const combined = [
+        ...dayEntry.worries.map((w) => ({ type: 'worry', item: w })),
+        ...dayEntry.gratitudes.map((g) => ({ type: 'gratitude', item: g }))
+      ].sort((a, b) => b.item.createdAt - a.item.createdAt);
 
-      if (itemsOnDay.length === 0) {
+      if (combined.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
-        empty.textContent = 'この日に登録された心配事はありません。';
+        empty.textContent = 'この日に登録された記録はありません。';
         dayListContainer.appendChild(empty);
       } else {
-        itemsOnDay.forEach((item) => {
-          dayListContainer.appendChild(createWorryCardElement(item));
+        combined.forEach((entry) => {
+          if (entry.type === 'gratitude') {
+            dayListContainer.appendChild(createGratitudeCardElement(entry.item));
+          } else {
+            dayListContainer.appendChild(createWorryCardElement(entry.item));
+          }
         });
       }
     }
   }
 
+  function renderHeaderPrimingBar() {
+    const words = getAllPrimingWords();
+    if (words.length === 0) return;
+    const todayStr = getTodayDateStr();
+    const idx = getDailyPrimingIndex(todayStr, words.length);
+    const currentWord = words[idx];
+
+    const textEl = document.getElementById('header-priming-text');
+    if (textEl) {
+      textEl.textContent = currentWord;
+    }
+
+    const likeBtn = document.getElementById('btn-like-priming');
+    const likeIcon = document.getElementById('priming-like-icon');
+    const entry = primingLikes[currentWord] || { count: 0, lastLikedDate: null };
+    const isLikedToday = entry.lastLikedDate === todayStr;
+
+    if (likeBtn) {
+      likeBtn.classList.toggle('liked', isLikedToday);
+      likeBtn.setAttribute('aria-pressed', String(isLikedToday));
+    }
+    if (likeIcon) {
+      likeIcon.textContent = isLikedToday ? '❤️' : '🤍';
+    }
+  }
+
+  function toggleTodayPrimingLike() {
+    const words = getAllPrimingWords();
+    if (words.length === 0) return;
+    const todayStr = getTodayDateStr();
+    const idx = getDailyPrimingIndex(todayStr, words.length);
+    const currentWord = words[idx];
+
+    const entry = primingLikes[currentWord] || { count: 0, lastLikedDate: null };
+    if (entry.lastLikedDate === todayStr) {
+      entry.count = Math.max(0, entry.count - 1);
+      entry.lastLikedDate = null;
+    } else {
+      entry.count += 1;
+      entry.lastLikedDate = todayStr;
+      showToast('今日のプライミングワードにいいねしました❤️');
+    }
+    primingLikes[currentWord] = entry;
+    savePrimingLikes();
+    renderHeaderPrimingBar();
+  }
+
   function renderAll() {
+    renderHeaderPrimingBar();
     renderBannerAndStats();
     renderListView();
     renderCalendarView();
+  }
+
+  function switchMode(mode) {
+    currentMode = mode === 'gratitude' ? 'gratitude' : 'worry';
+    const worryBtn = document.getElementById('mode-btn-worry');
+    const gratitudeBtn = document.getElementById('mode-btn-gratitude');
+    const worryPanel = document.getElementById('panel-mode-worry');
+    const gratitudePanel = document.getElementById('panel-mode-gratitude');
+
+    if (worryBtn) {
+      const isWorry = currentMode === 'worry';
+      worryBtn.classList.toggle('active', isWorry);
+      worryBtn.setAttribute('aria-selected', String(isWorry));
+    }
+    if (gratitudeBtn) {
+      const isGrat = currentMode === 'gratitude';
+      gratitudeBtn.classList.toggle('active', isGrat);
+      gratitudeBtn.setAttribute('aria-selected', String(isGrat));
+    }
+    if (worryPanel) worryPanel.hidden = currentMode !== 'worry';
+    if (gratitudePanel) gratitudePanel.hidden = currentMode !== 'gratitude';
+    renderListView();
   }
 
   // Actions
@@ -591,6 +915,30 @@
     window.location.reload();
   }
 
+  function addGratitude(title, registeredDate) {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    const validDate = isValidDateStr(registeredDate) ? registeredDate : getTodayDateStr();
+
+    const newItem = {
+      id: generateId(),
+      title: trimmed.slice(0, 300),
+      registeredDate: validDate,
+      createdAt: Date.now()
+    };
+
+    gratitudes.unshift(newItem);
+    saveGratitudes();
+    selectedDateStr = validDate;
+    filterYear = 'all';
+    filterMonth = 'all';
+    const monthSelect = document.getElementById('filter-month');
+    if (monthSelect) monthSelect.value = 'all';
+
+    renderAll();
+    showToast('感謝の言葉を記録しました🌸');
+  }
+
   function openResolveModal(id) {
     const item = worries.find((w) => w.id === id);
     if (!item) return;
@@ -630,10 +978,11 @@
     showToast('「心配中」に戻しました');
   }
 
-  function openDeleteModal(id) {
-    const item = worries.find((w) => w.id === id);
+  function openDeleteModal(id, type = 'worry') {
+    const targetList = type === 'gratitude' ? gratitudes : worries;
+    const item = targetList.find((w) => w.id === id);
     if (!item) return;
-    pendingDeleteId = id;
+    pendingDeleteTarget = { type, id };
     const preview = document.getElementById('delete-target-preview');
     if (preview) {
       preview.textContent = `「${item.title}」の記録を削除してもよろしいですか？`;
@@ -643,18 +992,125 @@
   }
 
   function closeDeleteModal() {
-    pendingDeleteId = null;
+    pendingDeleteTarget = null;
     const modal = document.getElementById('modal-delete');
     if (modal) modal.hidden = true;
   }
 
-  function confirmDeleteWorry() {
-    if (!pendingDeleteId) return;
-    worries = worries.filter((w) => w.id !== pendingDeleteId);
-    saveWorries();
+  function confirmDeleteTarget() {
+    if (!pendingDeleteTarget) return;
+    if (pendingDeleteTarget.type === 'gratitude') {
+      gratitudes = gratitudes.filter((g) => g.id !== pendingDeleteTarget.id);
+      saveGratitudes();
+    } else {
+      worries = worries.filter((w) => w.id !== pendingDeleteTarget.id);
+      saveWorries();
+    }
     closeDeleteModal();
     renderAll();
     showToast('記録を削除しました');
+  }
+
+  // Priming Word Functions
+  function getDailyPrimingIndex(dateStr, totalCount) {
+    if (totalCount <= 0) return 0;
+    const parsedMs = Date.parse(dateStr + 'T00:00:00Z');
+    const dayNumber = Number.isFinite(parsedMs) ? Math.floor(parsedMs / 86400000) : 0;
+    return Math.abs(dayNumber) % totalCount;
+  }
+
+  function renderPrimingModalContent(index) {
+    const words = getAllPrimingWords();
+    if (words.length === 0) return;
+    const safeIndex = ((index % words.length) + words.length) % words.length;
+    currentPrimingIndex = safeIndex;
+
+    const dateLabel = document.getElementById('modal-priming-title');
+    const wordBox = document.getElementById('priming-word-display');
+    if (dateLabel) dateLabel.textContent = formatDisplayDate(getTodayDateStr());
+    if (wordBox) wordBox.textContent = words[safeIndex];
+  }
+
+  function openPrimingModal(useDaily = true) {
+    const words = getAllPrimingWords();
+    if (useDaily) {
+      currentPrimingIndex = getDailyPrimingIndex(getTodayDateStr(), words.length);
+    }
+    renderPrimingModalContent(currentPrimingIndex);
+    const modal = document.getElementById('modal-priming');
+    if (modal) modal.hidden = false;
+  }
+
+  function closePrimingModal() {
+    const modal = document.getElementById('modal-priming');
+    if (modal) modal.hidden = true;
+  }
+
+  function shufflePrimingWord() {
+    const words = getAllPrimingWords();
+    if (words.length <= 1) return;
+    let nextIdx = (currentPrimingIndex + 1) % words.length;
+    renderPrimingModalContent(nextIdx);
+  }
+
+  function renderPrimingWordsList() {
+    const listEl = document.getElementById('priming-words-list');
+    if (!listEl) return;
+    listEl.replaceChildren();
+
+    // Show custom words first so user sees what they added
+    customPrimingWords.forEach((word, idx) => {
+      const li = document.createElement('li');
+      li.className = 'priming-word-item';
+
+      const textSpan = document.createElement('span');
+      textSpan.className = 'priming-word-text';
+      textSpan.textContent = word;
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'btn-icon-delete';
+      delBtn.setAttribute('aria-label', '削除');
+      delBtn.textContent = '🗑️';
+      delBtn.addEventListener('click', () => {
+        customPrimingWords.splice(idx, 1);
+        saveCustomPrimingWords();
+        renderPrimingWordsList();
+        showToast('プライミングワードを削除しました');
+      });
+
+      li.appendChild(textSpan);
+      li.appendChild(delBtn);
+      listEl.appendChild(li);
+    });
+
+    DEFAULT_PRIMING_WORDS.forEach((word) => {
+      const li = document.createElement('li');
+      li.className = 'priming-word-item';
+
+      const textSpan = document.createElement('span');
+      textSpan.className = 'priming-word-text';
+      textSpan.textContent = word;
+
+      const tagSpan = document.createElement('span');
+      tagSpan.className = 'priming-word-tag';
+      tagSpan.textContent = '標準';
+
+      li.appendChild(textSpan);
+      li.appendChild(tagSpan);
+      listEl.appendChild(li);
+    });
+  }
+
+  function openPrimingManageModal() {
+    renderPrimingWordsList();
+    const modal = document.getElementById('modal-priming-manage');
+    if (modal) modal.hidden = false;
+  }
+
+  function closePrimingManageModal() {
+    const modal = document.getElementById('modal-priming-manage');
+    if (modal) modal.hidden = true;
   }
 
   function switchTab(targetViewId) {
@@ -681,7 +1137,13 @@
 
   // Backup Export / Import
   function exportBackupJson() {
-    const dataStr = JSON.stringify(worries, null, 2);
+    const payload = {
+      version: 2,
+      worries,
+      gratitudes,
+      customPrimingWords
+    };
+    const dataStr = JSON.stringify(payload, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -705,17 +1167,49 @@
       try {
         const text = String(evt.target.result || '');
         const parsed = JSON.parse(text);
-        if (!Array.isArray(parsed)) {
-          showToast('無効なバックアップファイル形式です');
+
+        if (Array.isArray(parsed)) {
+          // Legacy v1 format (worries array only)
+          const validItems = parsed.map(sanitizeItem).filter(Boolean);
+          worries = validItems;
+          saveWorries();
+          renderAll();
+          const modal = document.getElementById('modal-backup');
+          if (modal) modal.hidden = true;
+          showToast(`${validItems.length}件の記録を復元しました`);
           return;
         }
-        const validItems = parsed.map(sanitizeItem).filter(Boolean);
-        worries = validItems;
-        saveWorries();
-        renderAll();
-        const modal = document.getElementById('modal-backup');
-        if (modal) modal.hidden = true;
-        showToast(`${validItems.length}件の記録を復元しました`);
+
+        if (parsed && typeof parsed === 'object') {
+          const validWorries = Array.isArray(parsed.worries)
+            ? parsed.worries.map(sanitizeItem).filter(Boolean)
+            : [];
+          const validGratitudes = Array.isArray(parsed.gratitudes)
+            ? parsed.gratitudes.map(sanitizeGratitude).filter(Boolean)
+            : [];
+          const validCustomPriming = Array.isArray(parsed.customPrimingWords)
+            ? parsed.customPrimingWords
+                .filter((s) => typeof s === 'string')
+                .map((s) => s.trim().slice(0, 120))
+                .filter(Boolean)
+            : [];
+
+          worries = validWorries;
+          gratitudes = validGratitudes;
+          customPrimingWords = validCustomPriming;
+          saveWorries();
+          saveGratitudes();
+          saveCustomPrimingWords();
+          renderAll();
+          const modal = document.getElementById('modal-backup');
+          if (modal) modal.hidden = true;
+          showToast(
+            `心配事 ${validWorries.length}件・感謝 ${validGratitudes.length}件を復元しました`
+          );
+          return;
+        }
+
+        showToast('無効なバックアップファイル形式です');
       } catch (_e) {
         showToast('JSONファイルの読み込みに失敗しました');
       }
@@ -726,11 +1220,33 @@
   // Initialization
   document.addEventListener('DOMContentLoaded', () => {
     loadWorries();
+    loadGratitudes();
+    loadCustomPrimingWords();
+    loadPrimingLikes();
 
-    // Default date input to today
+    const versionEl = document.getElementById('app-version');
+    if (versionEl) {
+      versionEl.textContent = APP_VERSION;
+    }
+
+    // Default date inputs to today
     const dateInput = document.getElementById('input-worry-date');
     if (dateInput) {
       dateInput.value = getTodayDateStr();
+    }
+    const gratitudeDateInput = document.getElementById('input-gratitude-date');
+    if (gratitudeDateInput) {
+      gratitudeDateInput.value = getTodayDateStr();
+    }
+
+    // Mode Selector Menu (Worry vs Gratitude)
+    const modeBtnWorry = document.getElementById('mode-btn-worry');
+    const modeBtnGratitude = document.getElementById('mode-btn-gratitude');
+    if (modeBtnWorry) {
+      modeBtnWorry.addEventListener('click', () => switchMode('worry'));
+    }
+    if (modeBtnGratitude) {
+      modeBtnGratitude.addEventListener('click', () => switchMode('gratitude'));
     }
 
     // Add Worry Form Submit
@@ -746,6 +1262,19 @@
       });
     }
 
+    // Add Gratitude Form Submit
+    const addGratitudeForm = document.getElementById('form-add-gratitude');
+    if (addGratitudeForm) {
+      addGratitudeForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const titleInput = document.getElementById('input-gratitude-title');
+        const dateEl = document.getElementById('input-gratitude-date');
+        if (!titleInput || !dateEl) return;
+        addGratitude(titleInput.value, dateEl.value);
+        titleInput.value = '';
+      });
+    }
+
     // Filter Buttons
     const filterBtns = document.querySelectorAll('.filter-pill');
     filterBtns.forEach((btn) => {
@@ -757,11 +1286,19 @@
       });
     });
 
-    // Year / Month Period Filter Selects
+    // Kind / Year / Month Period Filter Selects
+    const kindSelect = document.getElementById('filter-kind');
     const yearSelect = document.getElementById('filter-year');
     const monthSelect = document.getElementById('filter-month');
     const resetPeriodBtn = document.getElementById('btn-reset-period');
 
+    if (kindSelect) {
+      kindSelect.value = filterKind;
+      kindSelect.addEventListener('change', () => {
+        filterKind = kindSelect.value || 'all';
+        renderListView();
+      });
+    }
     if (yearSelect) {
       yearSelect.addEventListener('change', () => {
         filterYear = yearSelect.value || 'all';
@@ -776,8 +1313,10 @@
     }
     if (resetPeriodBtn) {
       resetPeriodBtn.addEventListener('click', () => {
+        filterKind = 'all';
         filterYear = 'all';
         filterMonth = 'all';
+        if (kindSelect) kindSelect.value = 'all';
         if (yearSelect) yearSelect.value = 'all';
         if (monthSelect) monthSelect.value = 'all';
         renderListView();
@@ -825,8 +1364,24 @@
         if (dateEl && isValidDateStr(selectedDateStr)) {
           dateEl.value = selectedDateStr;
         }
+        switchMode('worry');
         switchTab('view-list');
         const titleInput = document.getElementById('input-worry-title');
+        if (titleInput) titleInput.focus();
+      });
+    }
+
+    // Add gratitude on selected calendar date
+    const btnAddGratitudeOnSelected = document.getElementById('btn-add-gratitude-on-selected-date');
+    if (btnAddGratitudeOnSelected) {
+      btnAddGratitudeOnSelected.addEventListener('click', () => {
+        const dateEl = document.getElementById('input-gratitude-date');
+        if (dateEl && isValidDateStr(selectedDateStr)) {
+          dateEl.value = selectedDateStr;
+        }
+        switchMode('gratitude');
+        switchTab('view-list');
+        const titleInput = document.getElementById('input-gratitude-title');
         if (titleInput) titleInput.focus();
       });
     }
@@ -863,7 +1418,56 @@
     const btnCancelDelete = document.getElementById('btn-cancel-delete');
     const btnConfirmDelete = document.getElementById('btn-confirm-delete');
     if (btnCancelDelete) btnCancelDelete.addEventListener('click', closeDeleteModal);
-    if (btnConfirmDelete) btnConfirmDelete.addEventListener('click', confirmDeleteWorry);
+    if (btnConfirmDelete) btnConfirmDelete.addEventListener('click', confirmDeleteTarget);
+
+    // Priming Word Modals
+    const btnOpenPriming = document.getElementById('btn-open-priming');
+    const btnClosePriming = document.getElementById('btn-close-priming');
+    const btnShufflePriming = document.getElementById('btn-shuffle-priming');
+    const btnManagePriming = document.getElementById('btn-manage-priming');
+    const btnClosePrimingManage = document.getElementById('btn-close-priming-manage');
+    const formAddPriming = document.getElementById('form-add-priming');
+
+    if (btnOpenPriming) {
+      btnOpenPriming.addEventListener('click', () => openPrimingModal(true));
+    }
+    const headerPrimingOpen = document.getElementById('header-priming-open');
+    if (headerPrimingOpen) {
+      headerPrimingOpen.addEventListener('click', () => openPrimingModal(true));
+    }
+    const btnLikePriming = document.getElementById('btn-like-priming');
+    if (btnLikePriming) {
+      btnLikePriming.addEventListener('click', toggleTodayPrimingLike);
+    }
+    if (btnClosePriming) {
+      btnClosePriming.addEventListener('click', closePrimingModal);
+    }
+    if (btnShufflePriming) {
+      btnShufflePriming.addEventListener('click', shufflePrimingWord);
+    }
+    if (btnManagePriming) {
+      btnManagePriming.addEventListener('click', () => {
+        closePrimingModal();
+        openPrimingManageModal();
+      });
+    }
+    if (btnClosePrimingManage) {
+      btnClosePrimingManage.addEventListener('click', closePrimingManageModal);
+    }
+    if (formAddPriming) {
+      formAddPriming.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('input-priming-word');
+        if (!input) return;
+        const word = input.value.trim().slice(0, 120);
+        if (!word) return;
+        customPrimingWords.unshift(word);
+        saveCustomPrimingWords();
+        input.value = '';
+        renderPrimingWordsList();
+        showToast('プライミングワードを追加しました✨');
+      });
+    }
 
     // Backup Modal
     const modalBackup = document.getElementById('modal-backup');
@@ -915,8 +1519,14 @@
         sessionStorage.removeItem('worry_diary_flash');
         showToast(flashMsg);
       }
+
+      const primingShown = sessionStorage.getItem('worry_diary_priming_shown');
+      if (!primingShown) {
+        sessionStorage.setItem('worry_diary_priming_shown', '1');
+        openPrimingModal(true);
+      }
     } catch (_e) {
-      // ignore sessionStorage errors
+      openPrimingModal(true);
     }
   });
 })();

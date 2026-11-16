@@ -1,7 +1,7 @@
 'use strict';
 
 (function () {
-  const APP_VERSION = 'v1.2.0';
+  const APP_VERSION = 'v1.2.1';
   const STORAGE_KEY = 'worry_diary_items_v1';
   const GRATITUDE_STORAGE_KEY = 'worry_diary_gratitudes_v1';
   const PRIMING_STORAGE_KEY = 'worry_diary_priming_v1';

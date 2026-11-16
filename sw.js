@@ -1,11 +1,13 @@
-const CACHE_NAME = 'worry-diary-v12';
+const CACHE_NAME = 'worry-diary-v13';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './styles.css',
   './app.js',
   './manifest.json',
-  './icon.svg'
+  './icon.svg',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
